@@ -1,0 +1,28 @@
+import serial
+import requests
+import time
+
+GOOGLE_URL = "https://script.google.com/macros/s/AKfycbyapvPdH_8GOQnv02zAknf7OlHqpknT1YSG8DV3rmwlG6P04wv6o6Ezn_7xehVcnJTKWg/exec"
+
+try:
+    ser = serial.Serial('COM3', 115200, timeout=1) 
+    print("Connection Successful. Monitoring footsteps...")
+except serial.SerialException as e:
+    print(f"Error: {e}")
+    print("FIX: Close the Arduino Serial Monitor and try again!")
+    exit()
+
+while True:
+    try:
+        if ser.in_waiting > 0:
+            line = ser.readline().decode('utf-8', errors='ignore').strip()
+            if "vrect_mv=" in line and "STEP #" in line:
+                voltage = line.split("vrect_mv=")[1].split(" ")[0]
+                steps = line.split("STEP #")[1].split(" ")[0]
+                requests.get(f"{GOOGLE_URL}?v={voltage}&s={steps}")
+                print(f"Uploaded: {voltage}mV | Step: {steps}")
+    except Exception as e:
+        print(f"Data Error: {e}")
+        break
+
+ser.close()
