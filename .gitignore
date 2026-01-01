@@ -1,0 +1,8 @@
+# Secret files (CRITICAL)
+service-account.json
+.env
+
+# Python clutter
+__pycache__/
+*.pyc
+venv/
