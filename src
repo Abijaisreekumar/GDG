@@ -1,0 +1,128 @@
+#include <Wire.h>
+
+const int pin_a0  = A0;  
+const int pin_led = 2;   
+
+const float r_top      = 100000.0f; 
+const float r_bot      = 10000.0f;  
+const float div_factor = (r_top + r_bot) / r_bot; 
+
+const long adc_ref_mv = 1100L; 
+const int adc_max     = 1023;  
+
+const int samples_per_read       = 32; 
+const unsigned int sample_delay_us = 400; 
+
+float step_delta_threshold_mv = 8.0f; 
+const unsigned long step_debounce_ms = 400UL; 
+const bool use_dynamic_threshold     = true;  
+const float threshold_peak_fraction  = 0.12f; 
+
+float STEP_SENSITIVITY = 1.0f;
+
+const unsigned long led_on_ms = 180UL; 
+
+const float baseline_alpha = 0.08f;
+
+const unsigned long peak_decay_ms = 3000UL;
+
+bool serial_debug = true;
+
+unsigned long last_step_time = 0UL;
+unsigned long last_led_time  = 0UL;
+bool led_state = false;
+unsigned long step_count = 0UL;
+
+float baseline_mv = 0.0f;
+float running_peak_mv = 20.0f;
+unsigned long last_peak_decay = 0UL;
+
+void setup() {
+  if (serial_debug) Serial.begin(115200);
+
+  analogReference(INTERNAL); 
+
+  pinMode(pin_led, OUTPUT);
+  digitalWrite(pin_led, LOW);
+
+  float sum = 0.0f;
+  for (int i = 0; i < 12; ++i) {
+    sum += read_rectified_mv();
+    delay(20);
+  }
+  baseline_mv = sum / 12.0f;
+  running_peak_mv = max(baseline_mv, 20.0f);
+  last_peak_decay = millis();
+
+  if (serial_debug) {
+    Serial.print(F("Initial baseline (mV): "));
+    Serial.println(baseline_mv, 3);
+  }
+}
+
+void loop() {
+  float vrect_mv = read_rectified_mv();
+
+  if (vrect_mv > running_peak_mv) {
+    running_peak_mv = vrect_mv;
+    last_peak_decay = millis();
+  } else if (millis() - last_peak_decay > peak_decay_ms) {
+    running_peak_mv *= 0.995f; 
+    if (running_peak_mv < 5.0f) running_peak_mv = 5.0f;
+    last_peak_decay = millis();
+  }
+
+  float delta_mv = vrect_mv - baseline_mv;
+  float effective_threshold = step_delta_threshold_mv * STEP_SENSITIVITY;
+  if (use_dynamic_threshold) {
+    float dyn = running_peak_mv * threshold_peak_fraction * STEP_SENSITIVITY;
+    if (dyn > effective_threshold) effective_threshold = dyn;
+  }
+
+  if ((delta_mv >= effective_threshold) && (millis() - last_step_time > step_debounce_ms)) {
+    step_count++;
+    last_step_time = millis();
+
+    digitalWrite(pin_led, HIGH);
+    led_state = true;
+    last_led_time = millis();
+
+    if (serial_debug) {
+      Serial.print(F("STEP #"));
+      Serial.print(step_count);
+      Serial.print(F("  vrect_mv="));
+      Serial.print(vrect_mv, 3);
+      Serial.print(F("  delta="));
+      Serial.println(delta_mv, 3);
+    }
+  }
+
+  if (led_state && (millis() - last_led_time >= led_on_ms)) {
+    digitalWrite(pin_led, LOW);
+    led_state = false;
+  }
+
+  baseline_mv += (vrect_mv - baseline_mv) * baseline_alpha;
+
+  delay(30); 
+}
+
+float read_rectified_mv() {
+  unsigned long raw_sum = 0UL;
+  for (int i = 0; i < samples_per_read; ++i) {
+    raw_sum += analogRead(pin_a0);
+    delayMicroseconds(sample_delay_us);
+  }
+  float raw_avg = (float)raw_sum / samples_per_read;
+  float vnode_mv = (raw_avg * (float)adc_ref_mv) / adc_max;
+  float vrect_mv = vnode_mv * div_factor;
+
+  return vrect_mv;
+}
+
+int digits_count(unsigned long v) {
+  if (v == 0) return 1;
+  int c = 0;
+  while (v) { v /= 10; ++c; }
+  return c;
+}
