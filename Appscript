@@ -1,0 +1,12 @@
+function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  if (sheet.getLastRow() == 0) {
+    sheet.appendRow(["Timestamp", "Voltage (mV)", "Step_Count"]);
+  }
+
+  var voltage = e.parameter.v;
+  var steps = e.parameter.s;
+  sheet.appendRow([new Date(), voltage, steps]);
+  
+  return ContentService.createTextOutput("Data Received Successfully");
+}
