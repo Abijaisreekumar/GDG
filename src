@@ -116,7 +116,6 @@ float read_rectified_mv() {
   float raw_avg = (float)raw_sum / samples_per_read;
   float vnode_mv = (raw_avg * (float)adc_ref_mv) / adc_max;
   float vrect_mv = vnode_mv * div_factor;
-
   return vrect_mv;
 }
 
