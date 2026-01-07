@@ -1,0 +1,15 @@
+# --- SENSITIVE DATA (CRITICAL) ---
+.env
+service-account.json
+# This ignores all JSON files in the root to be extra safe
+/*.json 
+
+# --- PYTHON CLUTTER ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- VIRTUAL ENVIRONMENTS ---
+venv/
+.venv/
+env/
