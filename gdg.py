@@ -1,49 +1,60 @@
 import gspread
+import os
 from google import genai
 from google.oauth2.service_account import Credentials
-import os
+from dotenv import load_dotenv
 
+load_dotenv()
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 
+SHEET_NAME = "Power Generation"
 scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-
 
 base_path = os.path.dirname(os.path.abspath(__file__))
 path_to_json = os.path.join(base_path, "service-account.json")
 
-try:
-    creds = Credentials.from_service_account_file(path_to_json, scopes=scope)
-    client_sheets = gspread.authorize(creds)
-    sheet = client_sheets.open("Power Generation").sheet1
-    all_data = sheet.get_all_records()
-except FileNotFoundError:
-    print(f"Error: Could not find {path_to_json}. Please move the JSON file to this folder.")
-    exit()
+def analyze_energy_data():
+    try:
+        creds = Credentials.from_service_account_file(path_to_json, scopes=scope)
+        client_sheets = gspread.authorize(creds)
+        sheet = client_sheets.open(SHEET_NAME).sheet1
+        
+        all_data = sheet.get_all_records()
+        if not all_data:
+            return
 
-recent_entries = all_data[-10:]
-data_string = "\n".join([str(entry) for entry in recent_entries])
+        recent_entries = all_data[-10:]
+        data_string = "\n".join([str(entry) for entry in recent_entries])
 
-GEMINI_KEY = "AIzaSyDgF4EUsem2g87pEJZjJVpOAWjuZGeBuKU"
-client_gemini = genai.Client(api_key=GEMINI_KEY)
+        if not GEMINI_KEY:
+            print("Configuration Error: Check .env file")
+            return
 
-prompt = f"""
-I am developing a kinetic energy harvesting system. 
-Here is the latest data from my 'Power Generation' Google Sheet:
-{data_string}
+        client_gemini = genai.Client(api_key=GEMINI_KEY)
 
-Analyze this data and provide:
-1. Average voltage generated.
-2. An estimate of the total steps detected.
-3. One technical suggestion to improve power efficiency.
-"""
+        prompt = f"""
+        Latest Sensor Data:
+        {data_string}
 
+        Perform a technical audit:
+        1. Calculate Average Voltage.
+        2. Estimate Total Steps.
+        3. Provide one engineering suggestion for efficiency.
+        """
 
-try:
-    response = client_gemini.models.generate_content(
-        model="gemini-3-flash-preview", 
-        contents=prompt
-    )
-    print("\n--- Gemini Energy Analysis ---")
-    print(response.text)
-except Exception as e:
-    print(f"\nError calling Gemini: {e}")
-    print("Tip: If you see a 404 again, check AI Studio to see which models are available for your key.")
+        response = client_gemini.models.generate_content(
+            model="gemini-2.0-flash", 
+            contents=prompt
+        )
+
+        print("\n" + "="*45)
+        print("SMART GRID INSIGHTS")
+        print("="*45)
+        print(response.text.strip())
+        print("="*45)
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+if __name__ == "__main__":
+    analyze_energy_data()
