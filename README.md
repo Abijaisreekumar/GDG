@@ -1,7 +1,7 @@
-**👣 Footstep Power Generation & AI Analytics
+👣 Footstep Power Generation & AI Analytics
 A kinetic energy harvesting system that converts physical footsteps into electrical energy data, utilizing Google Colab and Gemini 3 Flash for intelligent energy forecasting and pattern recognition.
 
-**⚡ Project Overview
+⚡ Project Overview
 This project bridges the gap between hardware power generation and AI-driven data science. By capturing the mechanical energy of footsteps, the system generates a voltage signal logged to the cloud and analyzed by the Gemini 3 Flash model to optimize energy efficiency.
 
 🔹 Core Capabilities
